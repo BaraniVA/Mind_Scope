@@ -160,20 +160,27 @@ export default function MindScopePage() {
       toast({ title: "Limit Reached", description: `Cannot create more than ${MAX_PROJECTS} projects.`, variant: "destructive" });
       throw new Error("Project limit reached");
     }
-    const newProjectRef = push(ref(database, `users/${authUser.uid}/projects`));
-    const newProjectId = newProjectRef.key;
-    if (!newProjectId) {
-        toast({ title: "Error", description: "Failed to generate project ID.", variant: "destructive"});
-        throw new Error("Failed to generate project ID");
-    }
+    
+    setIsWritingToDb(true); // Add this line
+    try {
+      const newProjectRef = push(ref(database, `users/${authUser.uid}/projects`));
+      const newProjectId = newProjectRef.key;
+      if (!newProjectId) {
+          toast({ title: "Error", description: "Failed to generate project ID.", variant: "destructive"});
+          throw new Error("Failed to generate project ID");
+      }
 
-    const newProject: Project = {
-      ...DEFAULT_PROJECT,
-      title: projectName,
-      lastModified: serverTimestamp() as any, 
-    };
-    await set(newProjectRef, newProject);
-    setActiveProjectId(newProjectId); 
+      const newProject: Project = {
+        ...DEFAULT_PROJECT,
+        title: projectName,
+        lastModified: serverTimestamp() as any, 
+      };
+      await set(newProjectRef, newProject);
+      setActiveProjectId(newProjectId);
+    } finally {
+      // Small delay to ensure database operations complete
+      setTimeout(() => setIsWritingToDb(false), 500);
+    }
   };
 
   const handleDeleteProject = async (projectIdToDelete: string) => {

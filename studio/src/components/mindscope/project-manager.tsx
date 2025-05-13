@@ -1,4 +1,3 @@
-
 // src/components/mindscope/project-manager.tsx
 "use client";
 
@@ -54,15 +53,14 @@ export function ProjectManager({
       toast({ title: "Error", description: "Project name cannot be empty.", variant: "destructive" });
       return;
     }
-    if (projects.length >= maxProjects) {
-      toast({ title: "Limit Reached", description: `You can only create up to ${maxProjects} projects.`, variant: "destructive" });
-      return;
-    }
+    // Store the name before clearing it
+    const projectNameToCreate = newProjectName.trim();
+    
     setIsCreating(true);
     try {
-      await onCreateNewProject(newProjectName.trim());
+      await onCreateNewProject(projectNameToCreate);
       setNewProjectName('');
-      toast({ title: "Project Created", description: `Project "${newProjectName.trim()}" has been created.`});
+      toast({ title: "Project Created", description: `Project "${projectNameToCreate}" has been created.`});
     } catch (error: any) {
       toast({ title: "Creation Error", description: error.message, variant: "destructive" });
     }
