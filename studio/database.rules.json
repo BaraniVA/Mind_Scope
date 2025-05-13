@@ -1,0 +1,23 @@
+
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        // User can only read/write their own data node
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        "projects": {
+          // Validate that the 'projects' node (if it exists) does not have more than 5 children (projects)
+          ".validate": "!newData.exists() || newData.numChildren() <= 5",
+          "$projectId": {
+            // Individual project data structure validation
+            // Allow write if it's a new project being created, an update, or a deletion
+            ".write": "auth != null && auth.uid == $uid", // Ensure user is writing to their own project
+            ".validate": "(newData.hasChildren(['title', 'description', 'phases', 'team', 'lastModified']) && newData.child('title').isString() && newData.child('description').isString()) || !newData.exists()"
+          }
+        }
+        // You can add other user-specific data nodes here, e.g., "profile", "settings"
+      }
+    }
+  }
+}
