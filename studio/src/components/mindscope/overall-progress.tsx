@@ -11,10 +11,33 @@ interface OverallProgressProps {
 }
 
 export function OverallProgress({ project }: OverallProgressProps) {
+  // Safety check: ensure project and phases exist
+  if (!project || !project.phases || !Array.isArray(project.phases)) {
+    return (
+      <Card className="w-full shadow-lg my-6">
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center">
+            <ListChecks className="mr-3 h-7 w-7 text-primary" />
+            Overall Project Progress
+          </CardTitle>
+          <CardDescription>
+            A snapshot of your project's completion status across all phases.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">No project data available.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const { totalMicrotasks, completedMicrotasks } = project.phases.reduce(
     (acc, phase) => {
-      acc.totalMicrotasks += phase.microtasks.length;
-      acc.completedMicrotasks += phase.microtasks.filter(mt => mt.isCompleted).length;
+      // Check if microtasks exists and is an array
+      if (phase.microtasks && Array.isArray(phase.microtasks)) {
+        acc.totalMicrotasks += phase.microtasks.length;
+        acc.completedMicrotasks += phase.microtasks.filter(mt => mt.isCompleted).length;
+      }
       return acc;
     },
     { totalMicrotasks: 0, completedMicrotasks: 0 }

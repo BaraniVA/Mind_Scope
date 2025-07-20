@@ -5,6 +5,7 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import { AuthUserProvider } from "@/contexts/auth-user-context";
 import { Toaster } from "@/components/ui/toaster";
+import "@/lib/console-override";
 
 export const metadata: Metadata = {
   title: "MindScope - Visual Task Scoper",

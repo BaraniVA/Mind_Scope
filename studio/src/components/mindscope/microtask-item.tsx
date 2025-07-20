@@ -31,9 +31,7 @@ export function MicrotaskItem({ microtask, onUpdateMicrotask, onDeleteMicrotask 
   }, [microtask, isEditing]);
 
   const handleSave = () => {
-    // Log before saving to verify the value
     const newEstimatedTime = parseFloat(editableTime) || 0;
-    console.log("Saving estimated time:", newEstimatedTime);
     
     onUpdateMicrotask({
       ...microtask,

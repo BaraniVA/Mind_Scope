@@ -9,6 +9,20 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // Suppress React DevTools message
+    reactStrictMode: false,
+  },
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      // Suppress certain webpack warnings in development
+      config.stats = {
+        ...config.stats,
+        warnings: false,
+      };
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       {
