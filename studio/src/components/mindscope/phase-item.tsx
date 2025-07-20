@@ -60,7 +60,7 @@ export function PhaseItem({
   };
 
   const phaseProgress = (() => {
-    if (phase.microtasks.length === 0) return 0;
+    if (!phase.microtasks || !Array.isArray(phase.microtasks) || phase.microtasks.length === 0) return 0;
     const completedCount = phase.microtasks.filter(mt => mt.isCompleted).length;
     return (completedCount / phase.microtasks.length) * 100;
   })();
@@ -120,28 +120,45 @@ export function PhaseItem({
       </AccordionHeader>
       
       <AccordionContent className="px-4 py-3 border-t border-border bg-background/30">
-        <div className="space-y-3">
-          {phase.microtasks.map(microtask => (
-            <MicrotaskItem
-              key={microtask.id}
-              microtask={microtask}
-              onUpdateMicrotask={(updatedMt) => onUpdateMicrotask(phase.id, updatedMt)}
-              onDeleteMicrotask={(microtaskId) => onDeleteMicrotask(phase.id, microtaskId)}
-            />
-          ))}
-          {phase.microtasks.length === 0 && <p className="text-sm text-muted-foreground">No microtasks yet. Add one below!</p>}
+        {/* Microtasks Container */}
+        <div className="bg-background/60 rounded-lg border border-border/50 p-4 mb-4">
+          <div className="flex items-center mb-3">
+            <span className="text-sm font-medium text-muted-foreground">Microtasks ({phase.microtasks?.length || 0})</span>
+          </div>
+          <div className="space-y-3">
+            {phase.microtasks && Array.isArray(phase.microtasks) && phase.microtasks.map(microtask => (
+              <MicrotaskItem
+                key={microtask.id}
+                microtask={microtask}
+                onUpdateMicrotask={(updatedMt) => onUpdateMicrotask(phase.id, updatedMt)}
+                onDeleteMicrotask={(microtaskId) => onDeleteMicrotask(phase.id, microtaskId)}
+              />
+            ))}
+            {(!phase.microtasks || !Array.isArray(phase.microtasks) || phase.microtasks.length === 0) && (
+              <div className="text-center py-6">
+                <p className="text-sm text-muted-foreground">No microtasks yet. Add one below!</p>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="mt-4 flex space-x-2">
-          <Input
-            value={newMicrotaskName}
-            onChange={(e) => setNewMicrotaskName(e.target.value)}
-            placeholder="New microtask name"
-            className="flex-grow h-9"
-            onKeyPress={(e) => e.key === 'Enter' && handleAddMicrotask()}
-          />
-          <Button onClick={handleAddMicrotask} size="sm" variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
-            <PlusCircle className="h-4 w-4 mr-2" /> Add Microtask
-          </Button>
+        
+        {/* Add New Microtask Section */}
+        <div className="bg-background/40 rounded-lg border border-dashed border-primary/30 p-4">
+          <div className="flex items-center mb-2">
+            <span className="text-sm font-medium text-muted-foreground">Add New Microtask</span>
+          </div>
+          <div className="flex space-x-2">
+            <Input
+              value={newMicrotaskName}
+              onChange={(e) => setNewMicrotaskName(e.target.value)}
+              placeholder="Enter microtask name..."
+              className="flex-grow h-9"
+              onKeyPress={(e) => e.key === 'Enter' && handleAddMicrotask()}
+            />
+            <Button onClick={handleAddMicrotask} size="sm" variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
+              <PlusCircle className="h-4 w-4 mr-2" /> Add
+            </Button>
+          </div>
         </div>
       </AccordionContent>
     </AccordionItem>
