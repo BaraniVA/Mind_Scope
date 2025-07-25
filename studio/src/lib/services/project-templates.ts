@@ -30,124 +30,124 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
         microtasks: [
           {
             id: '',
-            name: 'Setup development environment',
-            description: 'Configure Next.js, TypeScript, and development tools',
-            estimatedTime: 4,
-            isCompleted: false,
-            priority: 'high',
-            complexity: 'simple',
-            dependencies: [],
-            tags: ['setup', 'environment']
-          },
-          {
-            id: '',
-            name: 'Design system architecture',
-            description: 'Plan database schema, API structure, and component architecture',
-            estimatedTime: 8,
+            name: 'Design comprehensive system architecture',
+            description: 'Plan database schema, API structure, microservices architecture, and data flow diagrams',
+            estimatedTime: 12,
             isCompleted: false,
             priority: 'high',
             complexity: 'complex',
             dependencies: [],
-            tags: ['architecture', 'planning']
+            tags: ['architecture', 'planning', 'database']
           },
           {
             id: '',
-            name: 'Setup CI/CD pipeline',
-            description: 'Configure deployment pipeline and testing automation',
-            estimatedTime: 6,
+            name: 'Setup production-ready development environment',
+            description: 'Configure Next.js with TypeScript, ESLint, Prettier, Husky, and development workflows',
+            estimatedTime: 8,
             isCompleted: false,
-            priority: 'medium',
+            priority: 'high',
             complexity: 'moderate',
             dependencies: [],
-            tags: ['devops', 'automation']
+            tags: ['setup', 'environment', 'tooling']
+          },
+          {
+            id: '',
+            name: 'Implement CI/CD pipeline with automated testing',
+            description: 'Setup GitHub Actions, automated testing, code quality checks, and deployment automation',
+            estimatedTime: 10,
+            isCompleted: false,
+            priority: 'medium',
+            complexity: 'complex',
+            dependencies: [],
+            tags: ['devops', 'automation', 'testing']
           }
         ]
       },
       {
-        name: 'Authentication System',
-        description: 'User registration, login, and session management',
+        name: 'Core Authentication & Security',
+        description: 'Comprehensive user management, authentication, and security implementation',
         estimatedDuration: 5,
         milestone: true,
         microtasks: [
           {
             id: '',
-            name: 'Setup NextAuth.js',
-            description: 'Configure authentication providers and session handling',
-            estimatedTime: 6,
+            name: 'Implement multi-provider authentication system',
+            description: 'Setup NextAuth.js with Google, GitHub, email/password, and social login providers',
+            estimatedTime: 12,
             isCompleted: false,
             priority: 'high',
-            complexity: 'moderate',
+            complexity: 'complex',
             dependencies: [],
-            tags: ['auth', 'nextauth']
+            tags: ['auth', 'nextauth', 'security']
           },
           {
             id: '',
-            name: 'Create user registration flow',
-            description: 'Build signup forms with validation and email verification',
-            estimatedTime: 8,
+            name: 'Build user onboarding and profile management',
+            description: 'Create signup flow, email verification, profile setup, and account management features',
+            estimatedTime: 16,
             isCompleted: false,
             priority: 'high',
-            complexity: 'moderate',
+            complexity: 'complex',
             dependencies: [],
-            tags: ['auth', 'forms', 'validation']
+            tags: ['auth', 'onboarding', 'user-management']
           },
           {
             id: '',
-            name: 'Implement role-based access',
-            description: 'Setup user roles and permission system',
-            estimatedTime: 10,
+            name: 'Implement role-based access control (RBAC)',
+            description: 'Design and implement user roles, permissions, middleware protection, and admin features',
+            estimatedTime: 14,
             isCompleted: false,
             priority: 'medium',
             complexity: 'complex',
             dependencies: [],
-            tags: ['auth', 'permissions', 'roles']
+            tags: ['auth', 'permissions', 'roles', 'security']
           }
         ]
       },
       {
-        name: 'Core Application Features',
-        description: 'Main application functionality and user interface',
+        name: 'Core Business Logic & Features',
+        description: 'Main application functionality, business logic, and user workflows',
         estimatedDuration: 20,
         milestone: true,
         microtasks: [
           {
             id: '',
-            name: 'Build user dashboard',
-            description: 'Create main dashboard with navigation and overview',
-            estimatedTime: 12,
+            name: 'Build comprehensive user dashboard',
+            description: 'Create main dashboard with analytics, navigation, notifications, and user activity overview',
+            estimatedTime: 20,
             isCompleted: false,
             priority: 'high',
-            complexity: 'moderate',
-            dependencies: [],
-            tags: ['ui', 'dashboard']
-          },
-          {
-            id: '',
-            name: 'Implement core CRUD operations',
-            description: 'Build create, read, update, delete functionality for main entities',
-            estimatedTime: 16,
-            isCompleted: false,
-            priority: 'high',
-            complexity: 'moderate',
-            dependencies: [],
-            tags: ['crud', 'api', 'database']
-          },
-          {
-            id: '',
-            name: 'Add real-time features',
-            description: 'Implement WebSocket connections for live updates',
-            estimatedTime: 10,
-            isCompleted: false,
-            priority: 'medium',
             complexity: 'complex',
             dependencies: [],
-            tags: ['realtime', 'websockets']
+            tags: ['ui', 'dashboard', 'analytics', 'user-experience']
+          },
+          {
+            id: '',
+            name: 'Implement core business logic with validation',
+            description: 'Build main application features with business rules, data validation, and error handling',
+            estimatedTime: 24,
+            isCompleted: false,
+            priority: 'high',
+            complexity: 'expert',
+            dependencies: [],
+            tags: ['business-logic', 'validation', 'api', 'database']
+          },
+          {
+            id: '',
+            name: 'Create real-time collaboration features',
+            description: 'Implement WebSocket-based real-time updates, notifications, and collaborative editing',
+            estimatedTime: 18,
+            isCompleted: false,
+            priority: 'medium',
+            complexity: 'expert',
+            dependencies: [],
+            tags: ['realtime', 'websockets', 'collaboration']
           }
         ]
       },
       {
-        name: 'Payment Integration',
-        description: 'Subscription management and payment processing',
+        name: 'Payment Integration & Billing',
+        description: 'Comprehensive subscription management, billing, and payment processing',
         estimatedDuration: 8,
         milestone: true,
         microtasks: [

@@ -53,6 +53,15 @@ export interface Phase {
   milestone?: boolean;
 }
 
+export interface OptimizationResults {
+  optimizations: string[];
+  timelinePrediction: string;
+  scopeAdjustments: string[];
+  riskAlerts: string[];
+  generatedAt: number; // timestamp when optimization was run
+  projectStateHash: string; // hash of project state when optimization was run
+}
+
 export interface ProjectMetadata {
   projectType: 'web-app' | 'mobile-app' | 'saas' | 'api' | 'desktop' | 'other';
   targetPlatform: string[];
@@ -75,6 +84,7 @@ export interface Project {
   progressPercentage: number;
   createdAt: number;
   templateId?: string;
+  optimizationResults?: OptimizationResults; // Store optimization results persistently
 }
 
 export interface UserProject {

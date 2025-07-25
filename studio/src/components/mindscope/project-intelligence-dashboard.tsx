@@ -39,12 +39,13 @@ import {
 
 interface ProjectIntelligenceDashboardProps {
   project: Project;
-  onOptimizeProject?: () => void;
+  onOptimizeProject?: (forceRefresh?: boolean) => void;
   optimizationResults?: {
     optimizations: string[];
     timelinePrediction: string;
     scopeAdjustments: string[];
     riskAlerts: string[];
+    generatedAt?: number;
   } | null;
 }
 
@@ -105,10 +106,22 @@ export function ProjectIntelligenceDashboard({
           <p className="text-gray-600">AI-powered insights and optimization recommendations</p>
         </div>
         {onOptimizeProject && (
-          <Button onClick={onOptimizeProject} className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            AI Optimize
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => onOptimizeProject(false)} className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              AI Optimize
+            </Button>
+            {optimizationResults && (
+              <Button 
+                onClick={() => onOptimizeProject(true)} 
+                variant="outline" 
+                className="flex items-center gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Force Refresh
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -429,7 +442,16 @@ export function ProjectIntelligenceDashboard({
               <Alert className="border-blue-200 bg-blue-50">
                 <Brain className="h-4 w-4" />
                 <AlertDescription>
-                  AI analysis completed! Found {optimizationResults.optimizations.length} optimization opportunities.
+                  <div className="flex items-center justify-between">
+                    <span>
+                      AI analysis completed! Found {optimizationResults.optimizations.length} optimization opportunities.
+                    </span>
+                    {optimizationResults.generatedAt && (
+                      <Badge variant="outline" className="text-xs">
+                        Generated {new Date(optimizationResults.generatedAt).toLocaleString()}
+                      </Badge>
+                    )}
+                  </div>
                 </AlertDescription>
               </Alert>
 
