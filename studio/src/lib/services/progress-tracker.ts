@@ -60,7 +60,14 @@ export function getProjectStats(project: Project): {
   
   // Calculate efficiency (actual time vs estimated time for completed tasks)
   const completedEstimatedHours = completedTasks.reduce((sum, task) => sum + task.estimatedTime, 0);
-  const efficiency = completedEstimatedHours > 0 ? totalActualHours / completedEstimatedHours : 1;
+  let efficiency = 1; // Default efficiency if no data available
+  
+  if (completedEstimatedHours > 0 && totalActualHours > 0) {
+    efficiency = totalActualHours / completedEstimatedHours;
+  } else if (completedTasks.length > 0) {
+    // If we have completed tasks but no actual time recorded, assume 100% efficiency
+    efficiency = 1;
+  }
   
   // Find upcoming deadlines (phases ending within 7 days)
   const now = Date.now();
@@ -121,12 +128,27 @@ export function predictCompletionDate(project: Project): {
   const remainingTasks = stats.totalTasks - stats.completedTasks;
   const remainingHours = stats.totalEstimatedHours - stats.totalActualHours;
   
-  // Adjust for efficiency
-  const adjustedRemainingHours = remainingHours * stats.efficiency;
+  // If project is complete, return current date
+  if (remainingTasks === 0) {
+    return {
+      estimatedCompletionDate: Date.now(),
+      confidence: 'high',
+      remainingHours: 0,
+      recommendedDaily: 0
+    };
+  }
+  
+  // Adjust for efficiency, but ensure we don't make remaining hours negative or zero
+  let adjustedRemainingHours = remainingHours * stats.efficiency;
+  
+  // If efficiency calculation results in very low remaining hours, use a minimum baseline
+  if (adjustedRemainingHours < 1 && remainingTasks > 0) {
+    adjustedRemainingHours = Math.max(remainingTasks * 0.5, remainingHours * 0.8);
+  }
   
   // Assume 6 productive hours per day
   const productiveHoursPerDay = 6;
-  const estimatedDaysRemaining = Math.ceil(adjustedRemainingHours / productiveHoursPerDay);
+  const estimatedDaysRemaining = Math.max(1, Math.ceil(adjustedRemainingHours / productiveHoursPerDay));
   
   const estimatedCompletionDate = Date.now() + (estimatedDaysRemaining * 24 * 60 * 60 * 1000);
   

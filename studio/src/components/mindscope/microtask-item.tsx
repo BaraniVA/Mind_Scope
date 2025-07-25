@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Microtask } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,6 @@ interface MicrotaskItemProps {
 export function MicrotaskItem({ microtask, onUpdateMicrotask, onDeleteMicrotask }: MicrotaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editableName, setEditableName] = useState(microtask.name);
-  // Use string type for form input
   const [editableTime, setEditableTime] = useState(
     microtask.estimatedTime?.toString() || '0'
   );
@@ -32,11 +31,10 @@ export function MicrotaskItem({ microtask, onUpdateMicrotask, onDeleteMicrotask 
 
   const handleSave = () => {
     const newEstimatedTime = parseFloat(editableTime) || 0;
-    
     onUpdateMicrotask({
       ...microtask,
       name: editableName,
-      estimatedTime: newEstimatedTime,  // Use the parsed value directly
+      estimatedTime: newEstimatedTime,
     });
     setIsEditing(false);
   };
@@ -47,18 +45,49 @@ export function MicrotaskItem({ microtask, onUpdateMicrotask, onDeleteMicrotask 
     setIsEditing(false);
   };
 
-  const toggleCompleted = () => {
-    onUpdateMicrotask({ ...microtask, isCompleted: !microtask.isCompleted });
+  const handleToggleComplete = (checked: boolean | string) => {
+    const isCompleted = checked === true;
+    
+    console.log('MicrotaskItem: Toggle complete', {
+      id: microtask.id,
+      from: microtask.isCompleted,
+      to: isCompleted
+    });
+    
+    // Create updated microtask object
+    const updatedMicrotask = {
+      ...microtask,
+      isCompleted,
+      completedAt: isCompleted ? Date.now() : undefined,
+      // Set actualTime to estimatedTime if not already set when completing task
+      actualTime: isCompleted 
+        ? (microtask.actualTime || microtask.estimatedTime) 
+        : microtask.actualTime
+    };
+    
+    // Remove completedAt and actualTime if task is being marked as incomplete
+    if (!isCompleted) {
+      if (updatedMicrotask.completedAt !== undefined) {
+        delete updatedMicrotask.completedAt;
+      }
+      // Only remove actualTime if it was set to estimatedTime (no manual tracking)
+      if (microtask.actualTime === undefined || microtask.actualTime === microtask.estimatedTime) {
+        delete updatedMicrotask.actualTime;
+      }
+    }
+    
+    // Immediately call the update function without any delays
+    onUpdateMicrotask(updatedMicrotask);
   };
 
   return (
-    <Card className={`mb-2 transition-all duration-300 ease-in-out ${microtask.isCompleted ? 'bg-muted/50 opacity-70' : 'bg-card'}`}>
+    <Card className={`mb-2 transition-all duration-200 ${microtask.isCompleted ? 'bg-muted/50 opacity-70' : 'bg-card'}`}>
       <CardContent className="p-3">
         <div className="flex items-center space-x-3">
           <Checkbox
             id={`task-${microtask.id}`}
             checked={microtask.isCompleted}
-            onCheckedChange={toggleCompleted}
+            onCheckedChange={handleToggleComplete}
             aria-label={`Mark task ${microtask.name} as ${microtask.isCompleted ? 'incomplete' : 'complete'}`}
             className="transform scale-110"
           />
@@ -114,6 +143,12 @@ export function MicrotaskItem({ microtask, onUpdateMicrotask, onDeleteMicrotask 
                 <Clock className="h-3 w-3" />
                 <span>{microtask.estimatedTime} hr(s)</span>
               </div>
+              {microtask.isCompleted && microtask.completedAt && (
+                <div className="flex items-center space-x-1 text-green-600">
+                  <span>✓</span>
+                  <span>Completed {new Date(microtask.completedAt).toLocaleDateString()}</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-1">
               <Button onClick={() => setIsEditing(true)} size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary">

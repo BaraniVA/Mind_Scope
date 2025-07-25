@@ -95,7 +95,6 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
             name: task.name,
             description: task.description,
             estimatedTime: task.estimatedTime,
-            actualTime: undefined,
             isCompleted: false,
             priority: task.priority,
             complexity: task.complexity,
@@ -106,7 +105,9 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
               description: `Depends on: ${dep}`
             })),
             tags: task.tags,
-            notes: task.deliverables.join(', ')
+            ...(task.deliverables && task.deliverables.length > 0 && {
+              notes: task.deliverables.join(', ')
+            })
           })),
           estimatedDuration: phase.estimatedDuration,
           milestone: phase.milestone,
@@ -138,7 +139,23 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
       onProjectCreated(project);
     } catch (error) {
       console.error('Error generating project:', error);
-      // Handle error state
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to generate project with AI. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          errorMessage = "AI service authentication failed. Please check your configuration.";
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = "Network error connecting to AI service. Please check your connection.";
+        } else if (error.message.includes('quota') || error.message.includes('limit')) {
+          errorMessage = "AI service quota exceeded. Please try again later.";
+        } else {
+          errorMessage = `AI Generation failed: ${error.message}`;
+        }
+      }
+      
+      // You can show an error state in the UI here
+      console.error('Project generation error:', errorMessage);
     } finally {
       setIsGenerating(false);
       setGenerationProgress(0);

@@ -1,7 +1,7 @@
 // src/components/mindscope/phase-item.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Phase, Microtask } from '@/lib/types';
 import { MicrotaskItem } from './microtask-item';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { AccordionContent, AccordionItem, AccordionHeader, AccordionTrigger } from '@/components/ui/accordion';
 import { PlusCircle, Trash2, Edit3, Save, XCircle, Folder } from 'lucide-react';
-
 
 interface PhaseItemProps {
   phase: Phase;
@@ -35,6 +34,16 @@ export function PhaseItem({
   useEffect(() => {
     setEditablePhaseName(phase.name);
   }, [phase.name]);
+
+  // Memoize the callback functions to prevent unnecessary re-renders
+  const handleUpdateMicrotask = useCallback((updatedMicrotask: Microtask) => {
+    console.log('PhaseItem: Updating microtask', updatedMicrotask.id, 'to completed:', updatedMicrotask.isCompleted);
+    onUpdateMicrotask(phase.id, updatedMicrotask);
+  }, [phase.id, onUpdateMicrotask]);
+
+  const handleDeleteMicrotask = useCallback((microtaskId: string) => {
+    onDeleteMicrotask(phase.id, microtaskId);
+  }, [phase.id, onDeleteMicrotask]);
 
   const handleSavePhaseName = () => {
     if (editablePhaseName.trim() === '') {
@@ -130,8 +139,8 @@ export function PhaseItem({
               <MicrotaskItem
                 key={microtask.id}
                 microtask={microtask}
-                onUpdateMicrotask={(updatedMt) => onUpdateMicrotask(phase.id, updatedMt)}
-                onDeleteMicrotask={(microtaskId) => onDeleteMicrotask(phase.id, microtaskId)}
+                onUpdateMicrotask={handleUpdateMicrotask}
+                onDeleteMicrotask={handleDeleteMicrotask}
               />
             ))}
             {(!phase.microtasks || !Array.isArray(phase.microtasks) || phase.microtasks.length === 0) && (

@@ -1,8 +1,8 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import type { Project, Phase, Microtask, UserProject } from '@/lib/types';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import type { Project, Phase, Microtask, UserProject, OptimizationResults } from '@/lib/types';
 import { AppHeader } from '@/components/mindscope/app-header';
 import { ProjectSetup } from '@/components/mindscope/project-setup';
 import { ProjectSetupEnhanced } from '@/components/mindscope/project-setup-enhanced';
@@ -17,6 +17,11 @@ import { suggestTasks as suggestTasksAction } from '@/ai/flows/suggest-tasks';
 import { generateEnhancedProject } from '@/ai/flows/enhanced-project-flow';
 import { optimizeProject } from '@/ai/flows/enhanced-project-flow';
 import { parseAISuggestions } from '@/lib/ai-parser';
+import { 
+  shouldRunOptimization, 
+  createOptimizationResults, 
+  isOptimizationFresh 
+} from '@/lib/optimization-utils';
 import { useAuth } from '@/contexts/auth-user-context';
 import { 
   getProjectStats, 
@@ -107,6 +112,11 @@ const normalizeProjectData = (data: any): Project => {
     normalized.metadata = DEFAULT_PROJECT.metadata;
   }
   
+  // Preserve optimization results if they exist
+  if (data.optimizationResults) {
+    normalized.optimizationResults = data.optimizationResults;
+  }
+  
   // Calculate progress percentage
   normalized.progressPercentage = calculateProjectProgress(normalized);
   
@@ -126,12 +136,16 @@ export default function MindScopePage() {
   const [isWritingToDb, setIsWritingToDb] = useState(false);
   const [showEnhancedSetup, setShowEnhancedSetup] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'intelligence'>('overview');
-  const [optimizationResults, setOptimizationResults] = useState<{
-    optimizations: string[];
-    timelinePrediction: string;
-    scopeAdjustments: string[];
-    riskAlerts: string[];
-  } | null>(null);
+  
+  // Ref to track the most current project data for preventing stale closures
+  const currentProjectDataRef = useRef<Project | null>(null);
+  const writeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isOptimisticUpdateRef = useRef(false);
+  
+  // Update ref whenever state changes
+  useEffect(() => {
+    currentProjectDataRef.current = currentProjectData;
+  }, [currentProjectData]);
 
 
   // Effect for auth state and initial data load
@@ -190,16 +204,18 @@ export default function MindScopePage() {
       const projectDataRef = ref(database, `users/${authUser.uid}/projects/${activeProjectId}`);
       
       const unsubscribe = onValue(projectDataRef, (snapshot) => {
-        // Skip updates if we're currently writing to the database
-        // This prevents the listener from overwriting our optimistic updates
-        if (isWritingToDb) {
+        // Skip updates if we're currently writing to the database or have an optimistic update
+        if (isWritingToDb || isOptimisticUpdateRef.current) {
+          console.log('Skipping database update due to write lock or optimistic update');
           setIsDataLoading(false);
           return;
         }
         
         const data = snapshot.val();
         if (data) {
-          setCurrentProjectData(normalizeProjectData(data));
+          const normalizedData = normalizeProjectData(data);
+          console.log('Database update: applying normalized data');
+          setCurrentProjectData(normalizedData);
         } else {
           setCurrentProjectData(null);
         }
@@ -238,7 +254,15 @@ export default function MindScopePage() {
   // Debounced save effect for currentProjectData
   useEffect(() => {
     if (authUser && activeProjectId && currentProjectData && !isDataLoading) { 
-      const debounceTimeout = setTimeout(() => {
+      // Clear any existing timeout
+      if (writeTimeoutRef.current) {
+        clearTimeout(writeTimeoutRef.current);
+      }
+      
+      writeTimeoutRef.current = setTimeout(() => {
+        // Only proceed if we're not already in a write operation from a different source
+        if (isWritingToDb) return;
+        
         const projectRef = ref(database, `users/${authUser.uid}/projects/${activeProjectId}`);
         
         // Clean undefined values before saving to Firebase
@@ -249,24 +273,33 @@ export default function MindScopePage() {
         
         // Set the write lock before saving
         setIsWritingToDb(true);
+        console.log('Starting database save...');
         
         set(projectRef, cleanedProjectData)
+          .then(() => {
+            console.log('Database save successful');
+          })
           .catch(error => {
             console.error("Failed to save project:", error);
             toast({ title: "Save Error", description: "Could not save project changes.", variant: "destructive" });
           })
           .finally(() => {
-            // Release the write lock after a short delay to ensure the
-            // onValue listener doesn't pick up the change too quickly
+            // Release both the write lock and optimistic update flag
             setTimeout(() => {
               setIsWritingToDb(false);
-            }, 1000); // Increase from 500ms to 1000ms
+              isOptimisticUpdateRef.current = false;
+              console.log('Released write lock and optimistic update flag');
+            }, 200);
           });
-      }, 1000); 
+      }, 400); // Reduced debounce to 400ms for faster saves
 
-      return () => clearTimeout(debounceTimeout);
+      return () => {
+        if (writeTimeoutRef.current) {
+          clearTimeout(writeTimeoutRef.current);
+        }
+      };
     }
-  }, [currentProjectData, authUser, activeProjectId, toast, isDataLoading]);
+  }, [currentProjectData, authUser, activeProjectId, toast, isDataLoading, isWritingToDb]);
 
 
   const generateId = () => push(ref(database, `users/${authUser?.uid}/temp`)).key || crypto.randomUUID();
@@ -294,11 +327,24 @@ export default function MindScopePage() {
         lastModified: serverTimestamp() as any,
         createdAt: Date.now()
       };
-      await set(newProjectRef, newProject);
+      
+      // Clean undefined values to prevent Firebase errors
+      const cleanedProject = cleanUndefinedValues(newProject);
+      
+      await set(newProjectRef, cleanedProject);
+      
+      // Clear current project data first to ensure clean state
+      setCurrentProjectData(null);
+      
+      // Release write lock before setting active project to allow proper loading
+      setIsWritingToDb(false);
+      
+      // Set the new project as active and reset tab
       setActiveProjectId(newProjectId);
       setActiveTab('overview'); // Reset to overview tab for new projects
-    } finally {
-      setTimeout(() => setIsWritingToDb(false), 500);
+    } catch (error) {
+      setIsWritingToDb(false);
+      throw error;
     }
   };
 
@@ -319,7 +365,17 @@ export default function MindScopePage() {
         lastModified: serverTimestamp() as any
       };
       
-      await set(newProjectRef, newProject);
+      // Clean undefined values to prevent Firebase errors
+      const cleanedProject = cleanUndefinedValues(newProject);
+      
+      await set(newProjectRef, cleanedProject);
+      
+      // Clear current project data first to ensure clean state
+      setCurrentProjectData(null);
+      
+      // Release write lock before setting active project to allow proper loading
+      setIsWritingToDb(false);
+      
       setActiveProjectId(newProjectId);
       setShowEnhancedSetup(false);
       setActiveTab('overview');
@@ -328,29 +384,47 @@ export default function MindScopePage() {
         title: "AI Project Created!", 
         description: `"${project.title}" has been created with intelligent insights.` 
       });
-    } finally {
-      setTimeout(() => setIsWritingToDb(false), 500);
+    } catch (error) {
+      setIsWritingToDb(false);
+      throw error;
     }
   };
 
-  const handleOptimizeProject = async () => {
+  const handleOptimizeProject = async (forceRefresh: boolean = false) => {
     if (!currentProjectData) return;
     
     try {
+      // Check if we should run optimization
+      const optimizationCheck = shouldRunOptimization(currentProjectData);
+      
+      // If we have recent optimization and not forcing refresh, use existing data
+      if (!forceRefresh && !optimizationCheck.shouldRun) {
+        toast({
+          title: "Using Cached Optimization",
+          description: `${optimizationCheck.reason}. Use "Force Refresh" for new analysis.`
+        });
+        setActiveTab('intelligence');
+        return;
+      }
+      
+      // Show different messages based on whether this is a refresh or new optimization
+      const isRefresh = !optimizationCheck.shouldRun && forceRefresh;
       toast({
-        title: "AI Optimization Started",
-        description: "Analyzing your project for optimization opportunities..."
+        title: isRefresh ? "AI Re-Optimization Started" : "AI Optimization Started",
+        description: isRefresh ? 
+          "Generating fresh optimization analysis..." : 
+          `${optimizationCheck.reason}. Analyzing your project for optimization opportunities...`
       });
 
       const stats = getProjectStats(currentProjectData);
       const optimization = await optimizeProject({
         currentProject: JSON.stringify(currentProjectData),
         progressData: JSON.stringify(stats),
-        feedback: 'User requested optimization'
+        feedback: forceRefresh ? 'User requested fresh optimization' : 'User requested optimization'
       });
       
       // Transform optimization results to match dashboard expectations
-      const transformedResults = {
+      const transformedOptimizationData = {
         optimizations: optimization.optimizations.map(opt => {
           const priorityText = opt.priority === 'critical' ? '🚨 Critical: ' : 
                               opt.priority === 'high' ? '⚡ High Priority: ' : 
@@ -366,12 +440,24 @@ export default function MindScopePage() {
           ['✅ No immediate risks identified - project is on track']
       };
       
-      // Store optimization results for display in dashboard
-      setOptimizationResults(transformedResults);
+      // Create persistent optimization results with metadata
+      const persistentOptimizationResults = createOptimizationResults(
+        transformedOptimizationData.optimizations,
+        transformedOptimizationData.timelinePrediction,
+        transformedOptimizationData.scopeAdjustments,
+        transformedOptimizationData.riskAlerts,
+        currentProjectData
+      );
+      
+      // Update project with optimization results
+      setCurrentProjectData(prev => prev ? {
+        ...prev,
+        optimizationResults: persistentOptimizationResults
+      } : null);
       
       toast({
-        title: "AI Optimization Complete",
-        description: `Found ${optimization.optimizations.length} optimization opportunities. Check the AI Intelligence tab to view details.`
+        title: isRefresh ? "AI Re-Optimization Complete" : "AI Optimization Complete",
+        description: `Found ${optimization.optimizations.length} optimization opportunities. Results saved permanently. Check the AI Intelligence tab to view details.`
       });
       
       // Switch to intelligence tab to show results
@@ -381,7 +467,7 @@ export default function MindScopePage() {
       console.error('Optimization error:', error);
       toast({
         title: "Optimization Failed",
-        description: "Could not analyze project for optimizations.",
+        description: "Could not analyze project for optimizations. Please try again.",
         variant: "destructive"
       });
     }
@@ -592,9 +678,24 @@ export default function MindScopePage() {
 
     } catch (error) {
       console.error('AI Enhancement error:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = "Could not enhance project with AI intelligence. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          errorMessage = "AI service authentication failed. Please check your API key configuration.";
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = "Network error connecting to AI service. Please check your internet connection.";
+        } else if (error.message.includes('quota') || error.message.includes('limit')) {
+          errorMessage = "AI service quota exceeded. Please try again later.";
+        } else {
+          errorMessage = `AI Enhancement failed: ${error.message}`;
+        }
+      }
+      
       toast({
         title: "Enhancement Failed",
-        description: "Could not enhance project with AI intelligence. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -656,23 +757,84 @@ export default function MindScopePage() {
     toast({ title: "Microtask Added", description: `Microtask "${microtaskName}" created.`});
   };
 
-  const handleUpdateMicrotask = (phaseId: string, updatedMicrotask: Microtask) => {
-    setCurrentProjectData(prev => prev ? {
-      ...prev,
-      phases: prev.phases.map(p =>
-        p.id === phaseId
-          ? { ...p, microtasks: (p.microtasks || []).map(mt => mt.id === updatedMicrotask.id ? updatedMicrotask : mt) }
-          : p
-      ),
-    } : null);
-  };
+  const handleUpdateMicrotask = useCallback((phaseId: string, updatedMicrotask: Microtask) => {
+    console.log('Main page: handleUpdateMicrotask called', { phaseId, microtaskId: updatedMicrotask.id, isCompleted: updatedMicrotask.isCompleted });
+    
+    if (!authUser || !activeProjectId || !currentProjectDataRef.current) return;
+    
+    // For completion status changes, update immediately without debouncing
+    const isCompletionUpdate = 'isCompleted' in updatedMicrotask;
+    
+    if (isCompletionUpdate) {
+      // Set write lock to prevent listener interference
+      setIsWritingToDb(true);
+      
+      // Create updated project data
+      const updatedProject: Project = {
+        ...currentProjectDataRef.current,
+        phases: currentProjectDataRef.current.phases.map((p): Phase =>
+          p.id === phaseId
+            ? {
+                ...p,
+                microtasks: p.microtasks.map((mt: Microtask) =>
+                  mt.id === updatedMicrotask.id ? updatedMicrotask : mt
+                )
+              }
+            : p
+        ),
+        lastModified: serverTimestamp()
+      };
+      
+      // Clean undefined values before saving
+      const cleanedProjectData = cleanUndefinedValues(updatedProject);
+      
+      // Immediately save to database for completion updates
+      const projectRef = ref(database, `users/${authUser.uid}/projects/${activeProjectId}`);
+      
+      set(projectRef, cleanedProjectData)
+        .then(() => {
+          console.log('Microtask completion updated in database');
+          // Update local state after successful database update
+          setCurrentProjectData(updatedProject);
+        })
+        .catch(error => {
+          console.error('Failed to update microtask:', error);
+          toast({ title: "Update Error", description: "Could not update task completion status.", variant: "destructive" });
+        })
+        .finally(() => {
+          // Release write lock after a short delay
+          setTimeout(() => {
+            setIsWritingToDb(false);
+          }, 300);
+        });
+    } else {
+      // For other updates (not completion status), use the regular optimistic update with debouncing
+      setCurrentProjectData(prev => {
+        if (!prev) return null;
+        
+        return {
+          ...prev,
+          phases: prev.phases.map((p): Phase =>
+            p.id === phaseId
+              ? {
+                  ...p,
+                  microtasks: p.microtasks.map((mt: Microtask) =>
+                    mt.id === updatedMicrotask.id ? updatedMicrotask : mt
+                  )
+                }
+              : p
+          ),
+        };
+      });
+    }
+  }, [authUser, activeProjectId, toast, cleanUndefinedValues]);
 
   const handleDeleteMicrotask = (phaseId: string, microtaskId: string) => {
     setCurrentProjectData(prev => prev ? {
       ...prev,
       phases: prev.phases.map(p =>
         p.id === phaseId
-          ? { ...p, microtasks: (p.microtasks || []).filter(mt => mt.id !== microtaskId) }
+          ? { ...p, microtasks: p.microtasks.filter((mt: Microtask) => mt.id !== microtaskId) }
           : p
       ),
     } : null);
@@ -859,7 +1021,13 @@ export default function MindScopePage() {
               <ProjectIntelligenceDashboard
                 project={currentProjectData}
                 onOptimizeProject={handleOptimizeProject}
-                optimizationResults={optimizationResults}
+                optimizationResults={currentProjectData.optimizationResults ? {
+                  optimizations: currentProjectData.optimizationResults.optimizations,
+                  timelinePrediction: currentProjectData.optimizationResults.timelinePrediction,
+                  scopeAdjustments: currentProjectData.optimizationResults.scopeAdjustments,
+                  riskAlerts: currentProjectData.optimizationResults.riskAlerts,
+                  generatedAt: currentProjectData.optimizationResults.generatedAt
+                } : null}
               />
             </TabsContent>
           </Tabs>
