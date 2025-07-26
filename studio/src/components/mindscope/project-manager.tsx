@@ -1,7 +1,7 @@
 // src/components/mindscope/project-manager.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import type { UserProject } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,9 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Trash2, FolderOpen } from 'lucide-react';
+import { Trash2, FolderOpen, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -31,41 +30,22 @@ interface ProjectManagerProps {
   projects: UserProject[];
   activeProjectId: string | null;
   onSelectProject: (projectId: string) => void;
-  onCreateNewProject: (projectName: string) => Promise<void>; // Make async to handle potential errors
   onDeleteProject: (projectId: string) => Promise<void>; // Make async
+  onOpenAISetup: () => void; // New prop to open AI setup modal
   maxProjects: number;
+  isNewUser?: boolean; // Optional prop to indicate if user is new
 }
 
 export function ProjectManager({
   projects,
   activeProjectId,
   onSelectProject,
-  onCreateNewProject,
   onDeleteProject,
+  onOpenAISetup,
   maxProjects,
+  isNewUser = false,
 }: ProjectManagerProps) {
-  const [newProjectName, setNewProjectName] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
-
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim()) {
-      toast({ title: "Error", description: "Project name cannot be empty.", variant: "destructive" });
-      return;
-    }
-    // Store the name before clearing it
-    const projectNameToCreate = newProjectName.trim();
-    
-    setIsCreating(true);
-    try {
-      await onCreateNewProject(projectNameToCreate);
-      setNewProjectName('');
-      toast({ title: "Project Created", description: `Project "${projectNameToCreate}" has been created.`});
-    } catch (error: any) {
-      toast({ title: "Creation Error", description: error.message, variant: "destructive" });
-    }
-    setIsCreating(false);
-  };
 
   const handleDelete = async (projectId: string, projectName?: string) => {
     try {
@@ -83,7 +63,7 @@ export function ProjectManager({
             <FolderOpen className="mr-3 h-7 w-7 text-primary" />
             Manage Your Projects
         </CardTitle>
-        <CardDescription>Select an existing project, or create a new one to get started.</CardDescription>
+        <CardDescription>Select an existing project, or create a new AI-powered project.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {projects.length > 0 && (
@@ -130,34 +110,32 @@ export function ProjectManager({
           </div>
         )}
 
-        <div className="space-y-2">
-            <label htmlFor="new-project-name" className="block text-sm font-medium text-foreground">Create New Project</label>
-            <div className="flex space-x-2">
-            <Input
-                id="new-project-name"
-                placeholder="Enter new project name"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateProject()}
-                disabled={projects.length >= maxProjects || isCreating}
-            />
-            <Button 
-                onClick={handleCreateProject} 
-                disabled={projects.length >= maxProjects || isCreating || !newProjectName.trim()}
-                aria-label="Create new project"
-            >
-                <PlusCircle className="h-4 w-4 mr-2" /> {isCreating ? "Creating..." : "Create"}
-            </Button>
-            </div>
-            {projects.length >= maxProjects && (
-            <p className="text-xs text-destructive">Project limit of {maxProjects} reached.</p>
-            )}
-        </div>
-         {projects.length === 0 && !isCreating && (
-            <p className="text-sm text-muted-foreground text-center py-2">
-                You don't have any projects yet. Create one above to begin!
+        <div className="space-y-4">
+          <Button 
+            onClick={onOpenAISetup}
+            className="w-full flex items-center gap-2"
+            size="lg"
+            disabled={projects.length >= maxProjects}
+          >
+            <Sparkles className="h-4 w-4" />
+            {projects.length >= maxProjects ? 'Project Limit Reached' : 'Create New AI Project'}
+          </Button>
+          
+          {projects.length >= maxProjects && (
+            <p className="text-sm text-destructive text-center py-2">
+              {isNewUser 
+                ? `New users are limited to ${maxProjects} project. Contact support to upgrade your account for more projects.`
+                : `You've reached the maximum of ${maxProjects} projects.`
+              }
             </p>
-        )}
+          )}
+          
+          {projects.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">
+              You don't have any projects yet. Create one above to begin!
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

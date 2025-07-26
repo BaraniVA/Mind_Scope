@@ -1,7 +1,7 @@
 // src/components/mindscope/enhanced-project-setup.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,7 +22,8 @@ import {
   AlertTriangle,
   Sparkles,
   Brain,
-  TrendingUp
+  TrendingUp,
+  X
 } from 'lucide-react';
 import { generateEnhancedProject, type EnhancedProjectInput } from '@/ai/flows/enhanced-project-flow';
 import { getProjectTemplates, createProjectFromTemplate } from '@/lib/services/project-templates';
@@ -62,6 +63,20 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
   });
 
   const projectTemplates = getProjectTemplates();
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [onCancel]);
 
   const handleSmartGeneration = async () => {
     if (!formData.projectName || !formData.projectDescription) {
@@ -200,7 +215,16 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
+      <div className="relative text-center space-y-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onCancel}
+          className="absolute top-0 right-0 h-8 w-8 hover:bg-gray-100"
+          aria-label="Close modal"
+        >
+          <X className="h-4 w-4" />
+        </Button>
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Brain className="h-8 w-8 text-blue-600" />
           AI-Powered Project Setup
