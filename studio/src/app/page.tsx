@@ -33,7 +33,7 @@ import {
   enhanceTimeEstimation 
 } from '@/lib/services/project-intelligence';
 import { database } from '@/lib/firebase/config';
-import { ref, onValue, set, push, remove, serverTimestamp, off, update } from 'firebase/database';
+import { ref, onValue, set, push, remove, serverTimestamp, off, update, get } from 'firebase/database';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -44,6 +44,7 @@ import { Loader2, Plus, Sparkles, Brain, BarChart3, Zap } from 'lucide-react';
 
 
 const MAX_PROJECTS = 10; // Increased from 5 to 10
+const MAX_PROJECTS_NEW_USERS = 1; // New users can only create 1 project
 const DEFAULT_PROJECT: Project = {
   title: '',
   description: '',
@@ -136,6 +137,8 @@ export default function MindScopePage() {
   const [isWritingToDb, setIsWritingToDb] = useState(false);
   const [showEnhancedSetup, setShowEnhancedSetup] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'intelligence'>('overview');
+  const [isNewUser, setIsNewUser] = useState<boolean>(false); // Track if user is new
+  const [userProjectLimit, setUserProjectLimit] = useState<number>(MAX_PROJECTS); // Dynamic project limit
   
   // Ref to track the most current project data for preventing stale closures
   const currentProjectDataRef = useRef<Project | null>(null);
@@ -155,6 +158,10 @@ export default function MindScopePage() {
         router.push('/login');
       } else {
         setLocalCurrentUserIdentifier(authUser.displayName || authUser.email || authUser.uid);
+        
+        // Initialize user profile to determine project limits
+        checkAndInitializeUserProfile(authUser.uid);
+        
         const projectsRef = ref(database, `users/${authUser.uid}/projects`);
         onValue(projectsRef, (snapshot) => {
           const projectsData = snapshot.val();
@@ -304,11 +311,67 @@ export default function MindScopePage() {
 
   const generateId = () => push(ref(database, `users/${authUser?.uid}/temp`)).key || crypto.randomUUID();
 
+  // Function to check if user is new and set their project limit
+  const checkAndInitializeUserProfile = async (uid: string) => {
+    try {
+      const userProfileRef = ref(database, `users/${uid}/profile`);
+      const projectsRef = ref(database, `users/${uid}/projects`);
+      
+      // Get user profile and projects data
+      const [profileSnapshot, projectsSnapshot] = await Promise.all([
+        get(userProfileRef),
+        get(projectsRef)
+      ]);
+
+      const profileData = profileSnapshot.val();
+      const projectsData = projectsSnapshot.val();
+      const existingProjectCount = projectsData ? Object.keys(projectsData).length : 0;
+
+      // If user has no profile data, they might be new
+      if (!profileData) {
+        // Check if they have existing projects (migrated user)
+        if (existingProjectCount > 0) {
+          // Existing user with projects - give them the full limit
+          await set(userProfileRef, {
+            isNewUser: false,
+            accountCreatedAt: Date.now(),
+            projectLimit: MAX_PROJECTS,
+            migratedUser: true // Flag to indicate they were migrated
+          });
+          setIsNewUser(false);
+          setUserProjectLimit(MAX_PROJECTS);
+        } else {
+          // Truly new user - restrict to 1 project
+          await set(userProfileRef, {
+            isNewUser: true,
+            accountCreatedAt: Date.now(),
+            projectLimit: MAX_PROJECTS_NEW_USERS,
+            migratedUser: false
+          });
+          setIsNewUser(true);
+          setUserProjectLimit(MAX_PROJECTS_NEW_USERS);
+        }
+      } else {
+        // User has profile data - use their existing settings
+        setIsNewUser(profileData.isNewUser || false);
+        setUserProjectLimit(profileData.projectLimit || MAX_PROJECTS);
+      }
+    } catch (error) {
+      console.error('Error checking user profile:', error);
+      // Default to existing user behavior if there's an error
+      setIsNewUser(false);
+      setUserProjectLimit(MAX_PROJECTS);
+    }
+  };
+
 
   const handleCreateNewProject = async (projectName: string) => {
     if (!authUser) return;
-    if (userProjects.length >= MAX_PROJECTS) {
-      toast({ title: "Limit Reached", description: `Cannot create more than ${MAX_PROJECTS} projects.`, variant: "destructive" });
+    if (userProjects.length >= userProjectLimit) {
+      const limitMessage = isNewUser ? 
+        `New users are limited to ${userProjectLimit} project. Create your first project to get started!` :
+        `Cannot create more than ${userProjectLimit} projects.`;
+      toast({ title: "Limit Reached", description: limitMessage, variant: "destructive" });
       throw new Error("Project limit reached");
     }
     
@@ -351,6 +414,15 @@ export default function MindScopePage() {
   const handleEnhancedProjectCreated = async (project: Omit<Project, 'lastModified'>) => {
     if (!authUser) return;
     
+    // Check project limit before creating
+    if (userProjects.length >= userProjectLimit) {
+      const limitMessage = isNewUser ? 
+        `New users are limited to ${userProjectLimit} project. You can upgrade your account for more projects.` :
+        `Cannot create more than ${userProjectLimit} projects.`;
+      toast({ title: "Limit Reached", description: limitMessage, variant: "destructive" });
+      return;
+    }
+    
     setIsWritingToDb(true);
     try {
       const newProjectRef = push(ref(database, `users/${authUser.uid}/projects`));
@@ -386,7 +458,41 @@ export default function MindScopePage() {
       });
     } catch (error) {
       setIsWritingToDb(false);
-      throw error;
+      console.error('Error creating enhanced project:', error);
+      toast({ 
+        title: "Creation Failed", 
+        description: "Could not create the AI project. Please try again.", 
+        variant: "destructive" 
+      });
+    }
+  };
+
+  // Function to upgrade user account (can be called later for premium features)
+  const upgradeUserAccount = async () => {
+    if (!authUser) return;
+    
+    try {
+      const userProfileRef = ref(database, `users/${authUser.uid}/profile`);
+      await update(userProfileRef, {
+        isNewUser: false,
+        projectLimit: MAX_PROJECTS,
+        upgradedAt: Date.now()
+      });
+      
+      setIsNewUser(false);
+      setUserProjectLimit(MAX_PROJECTS);
+      
+      toast({
+        title: "Account Upgraded!",
+        description: `You can now create up to ${MAX_PROJECTS} projects.`
+      });
+    } catch (error) {
+      console.error('Error upgrading account:', error);
+      toast({
+        title: "Upgrade Failed",
+        description: "Could not upgrade your account. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -879,7 +985,8 @@ export default function MindScopePage() {
                   Project Manager
                 </CardTitle>
                 <p className="text-sm text-gray-600 mt-1">
-                  Create and manage up to {MAX_PROJECTS} projects with AI-powered insights
+                  Create and manage up to {userProjectLimit} projects with AI-powered insights
+                  {isNewUser && " (New user limit - upgrade for more projects)"}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -902,9 +1009,10 @@ export default function MindScopePage() {
                 setActiveProjectId(id);
                 setActiveTab('overview');
               }}
-              onCreateNewProject={handleCreateNewProject}
               onDeleteProject={handleDeleteProject}
-              maxProjects={MAX_PROJECTS}
+              onOpenAISetup={() => setShowEnhancedSetup(true)}
+              maxProjects={userProjectLimit}
+              isNewUser={isNewUser}
             />
             
             {/* Project Grid for Better Visualization */}
@@ -961,7 +1069,15 @@ export default function MindScopePage() {
 
         {/* Enhanced Project Setup Modal */}
         {showEnhancedSetup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            onClick={(e) => {
+              // Close modal when clicking on backdrop
+              if (e.target === e.currentTarget) {
+                setShowEnhancedSetup(false);
+              }
+            }}
+          >
             <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-auto">
               <EnhancedProjectSetup
                 onProjectCreated={handleEnhancedProjectCreated}
