@@ -669,7 +669,7 @@ export default function MindScopePage() {
         projectType: currentProjectData.metadata.projectType,
         teamSize: currentProjectData.metadata.teamSize || 1,
         timeline: currentProjectData.metadata.timeline || 8,
-        experience: currentProjectData.metadata.complexity === 'simple' ? 'beginner' : currentProjectData.metadata.complexity === 'moderate' ? 'intermediate' : 'expert',
+        experience: currentProjectData.metadata.complexity,
         targetPlatforms: currentProjectData.metadata.targetPlatform,
         preferredTech: [
           ...currentProjectData.metadata.techStack.frontend,
@@ -681,25 +681,77 @@ export default function MindScopePage() {
       // Generate enhanced project structure with AI intelligence
       const result = await generateEnhancedProject(enhancedInput);
 
-      // Convert AI result to our project format
-      const enhancedPhases: Phase[] = result.project.phases.map((aiPhase) => ({
+      // Convert AI result to our project format with enhanced intelligence first
+      const enhancedPhases: Phase[] = result.project.phases.map((aiPhase, phaseIndex) => ({
         id: generateId(),
         name: aiPhase.name,
         description: aiPhase.description,
-        estimatedDuration: 7, // Default to 7 days
-        milestone: false,
-        microtasks: aiPhase.microtasks.map((aiTask) => ({
-          id: generateId(),
-          name: aiTask.name,
-          description: aiTask.description,
-          estimatedTime: 4, // Default to 4 hours
-          isCompleted: false,
-          priority: aiTask.priority,
-          complexity: 'moderate',
-          dependencies: [],
-          tags: [],
-        })),
+        estimatedDuration: aiPhase.estimatedDuration,
+        milestone: aiPhase.milestone,
+        riskAssessment: {
+          level: aiPhase.riskLevel,
+          factors: [aiPhase.description],
+          mitigation: ['Regular progress reviews', 'Clear communication']
+        },
+        microtasks: aiPhase.microtasks.map((aiTask, taskIndex) => {
+          const microtask: Microtask = {
+            id: generateId(),
+            name: aiTask.name,
+            description: aiTask.description,
+            estimatedTime: aiTask.estimatedTime,
+            isCompleted: false,
+            priority: aiTask.priority,
+            complexity: aiTask.complexity,
+            dependencies: aiTask.dependencies.map(dep => ({
+              id: generateId(),
+              dependsOn: dep,
+              type: 'prerequisite' as const,
+              description: `Depends on: ${dep}`
+            })),
+            tags: aiTask.tags
+          };
+          
+          // Only add notes if deliverables exist and are not empty
+          if (aiTask.deliverables && aiTask.deliverables.length > 0) {
+            microtask.notes = aiTask.deliverables.join(', ');
+          }
+          
+          return microtask;
+        })
       }));
+
+      // Run parallel AI analysis for additional intelligence
+      const [techStackAnalysis, riskAssessment, timeEstimation] = await Promise.all([
+        analyzeTechStack(
+          currentProjectData.description,
+          currentProjectData.metadata.projectType,
+          currentProjectData.metadata.teamSize || 1,
+          currentProjectData.metadata.timeline || 8
+        ),
+        assessProjectRisks(
+          currentProjectData.description,
+          enhancedPhases,
+          result.project.metadata.techStack,
+          currentProjectData.metadata.teamSize || 1,
+          currentProjectData.metadata.timeline || 8
+        ),
+        enhanceTimeEstimation(
+          enhancedPhases,
+          result.project.metadata.techStack,
+          currentProjectData.metadata.complexity
+        )
+      ]);
+
+      // Update phases with actual risk assessment data
+      enhancedPhases.forEach((phase, index) => {
+        if (riskAssessment.mitigationStrategies.length > 0) {
+          phase.riskAssessment = {
+            level: phase.riskAssessment?.level || 'medium',
+            factors: riskAssessment.riskFactors.slice(0, 2),
+            mitigation: riskAssessment.mitigationStrategies.slice(0, 2)
+          };
+        }
+      });
 
       // Calculate total estimated time
       const totalEstimatedTime = enhancedPhases.reduce((total, phase) =>
@@ -716,9 +768,9 @@ export default function MindScopePage() {
           phases: enhancedPhases,
           metadata: {
             ...prev.metadata,
-            techStack: result.project.techStack,
-            timeline: prev.metadata.timeline,
-            complexity: prev.metadata.complexity,
+            techStack: result.project.metadata.techStack,
+            timeline: result.project.metadata.timeline,
+            complexity: result.project.metadata.complexity
           },
           totalEstimatedTime,
           progressPercentage: 0
