@@ -579,7 +579,6 @@ export default function MindScopePage() {
     }
   };
 
-
   const handleDeleteProject = async (projectIdToDelete: string) => {
     if (!authUser || !projectIdToDelete) return;
     const projectRef = ref(database, `users/${authUser.uid}/projects/${projectIdToDelete}`);
@@ -710,12 +709,12 @@ export default function MindScopePage() {
             })),
             tags: aiTask.tags
           };
-          
+
           // Only add notes if deliverables exist and are not empty
           if (aiTask.deliverables && aiTask.deliverables.length > 0) {
             microtask.notes = aiTask.deliverables.join(', ');
           }
-          
+
           return microtask;
         })
       }));

@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, FolderOpen, Sparkles } from 'lucide-react';
+import { PlusCircle, Trash2, FolderOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -30,10 +30,10 @@ interface ProjectManagerProps {
   projects: UserProject[];
   activeProjectId: string | null;
   onSelectProject: (projectId: string) => void;
-  onDeleteProject: (projectId: string) => Promise<void>; // Make async
-  onOpenAISetup: () => void; // New prop to open AI setup modal
+  onDeleteProject: (projectId: string) => Promise<void>;
+  onOpenAISetup: () => void;
   maxProjects: number;
-  isNewUser?: boolean; // Optional prop to indicate if user is new
+  isNewUser?: boolean;
 }
 
 export function ProjectManager({
@@ -43,7 +43,7 @@ export function ProjectManager({
   onDeleteProject,
   onOpenAISetup,
   maxProjects,
-  isNewUser = false,
+  isNewUser,
 }: ProjectManagerProps) {
   const { toast } = useToast();
 
@@ -63,7 +63,7 @@ export function ProjectManager({
             <FolderOpen className="mr-3 h-7 w-7 text-primary" />
             Manage Your Projects
         </CardTitle>
-        <CardDescription>Select an existing project, or create a new AI-powered project.</CardDescription>
+        <CardDescription>Select an existing project, or create a new one to get started.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {projects.length > 0 && (
@@ -110,32 +110,28 @@ export function ProjectManager({
           </div>
         )}
 
-        <div className="space-y-4">
-          <Button 
+        <div>
+          <Button
             onClick={onOpenAISetup}
-            className="w-full flex items-center gap-2"
-            size="lg"
             disabled={projects.length >= maxProjects}
+            className="w-full"
           >
-            <Sparkles className="h-4 w-4" />
-            {projects.length >= maxProjects ? 'Project Limit Reached' : 'Create New AI Project'}
+            <PlusCircle className="h-4 w-4 mr-2" />
+            New AI Project
           </Button>
-          
           {projects.length >= maxProjects && (
-            <p className="text-sm text-destructive text-center py-2">
-              {isNewUser 
-                ? `New users are limited to ${maxProjects} project. Contact support to upgrade your account for more projects.`
-                : `You've reached the maximum of ${maxProjects} projects.`
-              }
-            </p>
-          )}
-          
-          {projects.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-2">
-              You don't have any projects yet. Create one above to begin!
+            <p className="text-xs text-destructive text-center mt-2">
+              {isNewUser
+                ? `New user project limit of ${maxProjects} reached. Upgrade for more projects.`
+                : `Project limit of ${maxProjects} reached.`}
             </p>
           )}
         </div>
+        {projects.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-2">
+            You don't have any projects yet. Create one above to begin!
+          </p>
+        )}
       </CardContent>
     </Card>
   );
