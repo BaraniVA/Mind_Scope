@@ -106,8 +106,8 @@ Project Details:
 CRITICAL REQUIREMENTS FOR OUTPUT FORMAT:
 - ALWAYS include "title": "{{{projectName}}}" in the project object
 - ALWAYS include all required fields: title, description, metadata, phases, recommendations
-- Generate AT LEAST 50-80 microtasks for complex projects (like AI/ML apps)
-- Create 6-10 detailed phases, each with 8-15 specific microtasks
+- Generate AT LEAST 20-30 microtasks for complex projects (like AI/ML apps)
+- Create 4-6 detailed phases, each with 5-10 specific microtasks
 - Break down large features into granular, implementable tasks
 - Include ALL necessary development aspects: frontend, backend, APIs, testing, deployment, etc.
 
