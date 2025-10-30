@@ -64,18 +64,14 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
 
   const projectTemplates = getProjectTemplates();
 
-  // Handle escape key to close modal
   useEffect(() => {
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         onCancel();
       }
     };
-
-    document.addEventListener('keydown', handleEscapeKey);
-    return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
-    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onCancel]);
 
   const handleSmartGeneration = async () => {
@@ -215,16 +211,7 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="relative text-center space-y-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onCancel}
-          className="absolute top-0 right-0 h-8 w-8 hover:bg-gray-100"
-          aria-label="Close modal"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+      <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Brain className="h-8 w-8 text-blue-600" />
           AI-Powered Project Setup
@@ -233,6 +220,10 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
           Create intelligent project plans with AI-powered insights and optimization
         </p>
       </div>
+
+      <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={onCancel}>
+        <X className="h-6 w-6" />
+      </Button>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">

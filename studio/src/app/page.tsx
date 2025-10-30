@@ -579,7 +579,6 @@ export default function MindScopePage() {
     }
   };
 
-
   const handleDeleteProject = async (projectIdToDelete: string) => {
     if (!authUser || !projectIdToDelete) return;
     const projectRef = ref(database, `users/${authUser.uid}/projects/${projectIdToDelete}`);
