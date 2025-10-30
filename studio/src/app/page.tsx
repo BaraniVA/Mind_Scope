@@ -708,6 +708,7 @@ export default function MindScopePage() {
         ), 0
       );
 
+
       // Update project with enhanced data
       setCurrentProjectData(prev => {
         if (!prev) return null;
