@@ -109,42 +109,27 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
             id: `task-${phaseIndex}-${taskIndex}`,
             name: task.name,
             description: task.description,
-            estimatedTime: task.estimatedTime,
+            estimatedTime: 4, // Default to 4 hours
             isCompleted: false,
             priority: task.priority,
-            complexity: task.complexity,
-            dependencies: task.dependencies.map(dep => ({
-              id: `dep-${taskIndex}`,
-              dependsOn: dep,
-              type: 'prerequisite' as const,
-              description: `Depends on: ${dep}`
-            })),
-            tags: task.tags,
-            ...(task.deliverables && task.deliverables.length > 0 && {
-              notes: task.deliverables.join(', ')
-            })
+            complexity: 'moderate',
+            dependencies: [],
+            tags: [],
           })),
-          estimatedDuration: phase.estimatedDuration,
-          milestone: phase.milestone,
-          riskAssessment: {
-            level: phase.riskLevel,
-            factors: [`${phase.riskLevel} risk phase`],
-            mitigation: ['Regular progress reviews', 'Clear communication']
-          }
+          estimatedDuration: 7, // Default to 7 days
+          milestone: false,
         })),
         team: [],
         metadata: {
-          projectType: result.project.metadata.projectType,
-          targetPlatform: result.project.metadata.targetPlatform,
-          techStack: result.project.metadata.techStack,
-          teamSize: result.project.metadata.teamSize,
-          timeline: result.project.metadata.timeline,
-          complexity: result.project.metadata.complexity
+          projectType: formData.projectType,
+          targetPlatform: formData.targetPlatforms,
+          techStack: result.project.techStack,
+          teamSize: formData.teamSize,
+          timeline: formData.timeline,
+          complexity: formData.experience,
         },
-        totalEstimatedTime: result.project.phases.reduce((total, phase) => 
-          total + phase.microtasks.reduce((phaseTotal, task) => 
-            phaseTotal + task.estimatedTime, 0
-          ), 0
+        totalEstimatedTime: result.project.phases.reduce((total, phase) =>
+          total + phase.microtasks.length * 4, 0
         ),
         progressPercentage: 0,
         createdAt: Date.now(),
@@ -361,9 +346,8 @@ export function EnhancedProjectSetup({ onProjectCreated, onCancel }: EnhancedPro
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="simple">Beginner</SelectItem>
-                      <SelectItem value="moderate">Intermediate</SelectItem>
-                      <SelectItem value="complex">Advanced</SelectItem>
+                      <SelectItem value="beginner">Beginner</SelectItem>
+                      <SelectItem value="intermediate">Intermediate</SelectItem>
                       <SelectItem value="expert">Expert</SelectItem>
                     </SelectContent>
                   </Select>
